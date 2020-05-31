@@ -32,6 +32,7 @@ import io.github.hapjava.accessories.ThermostatAccessory;
 import io.github.hapjava.characteristics.HomekitCharacteristicChangeCallback;
 import io.github.hapjava.characteristics.impl.thermostat.CurrentHeatingCoolingStateEnum;
 import io.github.hapjava.characteristics.impl.thermostat.TargetHeatingCoolingStateEnum;
+import io.github.hapjava.characteristics.impl.thermostat.TargetTemperatureCharacteristic;
 import io.github.hapjava.characteristics.impl.thermostat.TemperatureDisplayUnitEnum;
 import io.github.hapjava.services.impl.ThermostatService;
 
@@ -91,6 +92,24 @@ class HomekitThermostatImpl extends AbstractHomekitAccessoryImpl implements Ther
     public CompletableFuture<Double> getCurrentTemperature() {
         DecimalType state = getStateAs(HomekitCharacteristicType.CURRENT_TEMPERATURE, DecimalType.class);
         return CompletableFuture.completedFuture(state != null ? convertToCelsius(state.doubleValue()) : 0.0);
+    }
+
+    @Override
+    public double getMinCurrentTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.CURRENT_TEMPERATURE, HomekitTaggedItem.MIN_VALUE,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_MIN_VALUE)).doubleValue();
+    }
+
+    @Override
+    public double getMaxCurrentTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.CURRENT_TEMPERATURE, HomekitTaggedItem.MAX_VALUE,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_MAX_VALUE)).doubleValue();
+    }
+
+    @Override
+    public double getMinStepCurrentTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.CURRENT_TEMPERATURE, HomekitTaggedItem.STEP,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_STEP)).doubleValue();
     }
 
     @Override
@@ -188,6 +207,24 @@ class HomekitThermostatImpl extends AbstractHomekitAccessoryImpl implements Ther
     }
 
     @Override
+    public double getMinTargetTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.TARGET_TEMPERATURE, HomekitTaggedItem.MIN_VALUE,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_MIN_VALUE)).doubleValue();
+    }
+
+    @Override
+    public double getMaxTargetTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.TARGET_TEMPERATURE, HomekitTaggedItem.MAX_VALUE,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_MAX_VALUE)).doubleValue();
+    }
+
+    @Override
+    public double getMinStepTargetTemperature() {
+        return getAccessoryConfiguration(HomekitCharacteristicType.TARGET_TEMPERATURE, HomekitTaggedItem.STEP,
+                BigDecimal.valueOf(TargetTemperatureCharacteristic.DEFAULT_STEP)).doubleValue();
+    }
+
+    @Override
     public void subscribeCurrentState(HomekitCharacteristicChangeCallback callback) {
         subscribe(HomekitCharacteristicType.CURRENT_HEATING_COOLING_STATE, callback);
     }
@@ -235,21 +272,5 @@ class HomekitThermostatImpl extends AbstractHomekitAccessoryImpl implements Ther
     @Override
     public void unsubscribeTargetTemperature() {
         unsubscribe(HomekitCharacteristicType.TARGET_TEMPERATURE);
-    }
-
-    protected double convertToCelsius(double degrees) {
-        if (getSettings().useFahrenheitTemperature) {
-            return Math.round((5d / 9d) * (degrees - 32d) * 1000d) / 1000d;
-        } else {
-            return degrees;
-        }
-    }
-
-    protected double convertFromCelsius(double degrees) {
-        if (getSettings().useFahrenheitTemperature) {
-            return Math.round((((9d / 5d) * degrees) + 32d) * 10d) / 10d;
-        } else {
-            return degrees;
-        }
     }
 }

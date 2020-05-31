@@ -56,7 +56,8 @@ public class DaikinAirbaseUnitHandler extends DaikinBaseHandler {
     private final Logger logger = LoggerFactory.getLogger(DaikinAirbaseUnitHandler.class);
     private @Nullable AirbaseModelInfo airbaseModelInfo;
 
-    public DaikinAirbaseUnitHandler(Thing thing, DaikinDynamicStateDescriptionProvider stateDescriptionProvider, @Nullable HttpClient httpClient) {
+    public DaikinAirbaseUnitHandler(Thing thing, DaikinDynamicStateDescriptionProvider stateDescriptionProvider,
+            @Nullable HttpClient httpClient) {
         super(thing, stateDescriptionProvider, httpClient);
     }
 
@@ -132,7 +133,13 @@ public class DaikinAirbaseUnitHandler extends DaikinBaseHandler {
 
     @Override
     protected void changeMode(String mode) throws DaikinCommunicationException {
-        AirbaseMode newMode = AirbaseMode.valueOf(mode);
+        AirbaseMode newMode;
+        try {
+            newMode = AirbaseMode.valueOf(mode);
+        } catch (IllegalArgumentException ex) {
+            logger.warn("Invalid mode: {}. Valid values: {}", mode, AirbaseMode.values());
+            return;
+        }
         if (airbaseModelInfo != null) {
             if ((newMode == AirbaseMode.AUTO && !airbaseModelInfo.features.contains(AirbaseFeature.AUTO))
                     || (newMode == AirbaseMode.DRY && !airbaseModelInfo.features.contains(AirbaseFeature.DRY))) {
@@ -147,7 +154,13 @@ public class DaikinAirbaseUnitHandler extends DaikinBaseHandler {
 
     @Override
     protected void changeFanSpeed(String speed) throws DaikinCommunicationException {
-        AirbaseFanSpeed newFanSpeed = AirbaseFanSpeed.valueOf(speed);
+        AirbaseFanSpeed newFanSpeed;
+        try {
+            newFanSpeed = AirbaseFanSpeed.valueOf(speed);
+        } catch (IllegalArgumentException ex) {
+            logger.warn("Invalid fan speed: {}. Valid values: {}", speed, AirbaseFanSpeed.values());
+            return;
+        }
         if (airbaseModelInfo != null) {
             if (EnumSet.range(AirbaseFanSpeed.AUTO_LEVEL_1, AirbaseFanSpeed.AUTO_LEVEL_5).contains(newFanSpeed)
                     && !airbaseModelInfo.features.contains(AirbaseFeature.FRATE_AUTO)) {

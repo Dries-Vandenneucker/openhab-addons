@@ -18,11 +18,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
+import javax.measure.Quantity;
+import javax.measure.Unit;
+
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.smarthome.core.items.GenericItem;
 import org.eclipse.smarthome.core.items.Item;
 import org.eclipse.smarthome.core.types.State;
+import org.eclipse.smarthome.core.library.unit.SIUnits;
+import org.eclipse.smarthome.core.library.unit.ImperialUnits;
 import org.openhab.io.homekit.internal.HomekitAccessoryUpdater;
 import org.openhab.io.homekit.internal.HomekitCharacteristicType;
 import org.openhab.io.homekit.internal.HomekitSettings;
@@ -131,7 +139,7 @@ abstract class AbstractHomekitAccessoryImpl implements HomekitAccessory {
         }
     }
 
-    protected @Nullable <T extends State> T getStateAs(HomekitCharacteristicType characteristic, Class type) {
+    protected @Nullable <T extends State> T getStateAs(HomekitCharacteristicType characteristic, Class<T> type) {
         final Optional<HomekitTaggedItem> taggedItem = getCharacteristic(characteristic);
         if (taggedItem.isPresent()) {
             final State state = taggedItem.get().getItem().getStateAs(type);
@@ -139,16 +147,17 @@ abstract class AbstractHomekitAccessoryImpl implements HomekitAccessory {
                 return (T) state.as(type);
             }
         }
-        logger.warn("State for characteristic {} at accessory {} cannot be retrieved.", characteristic,
-                accessory.getId());
+        logger.debug("State for characteristic {} at accessory {} cannot be retrieved.", characteristic,
+                accessory.getName());
         return null;
     }
 
+    @SuppressWarnings("unchecked")
     protected @Nullable <T extends Item> T getItem(HomekitCharacteristicType characteristic, Class<T> type) {
         final Optional<HomekitTaggedItem> taggedItem = getCharacteristic(characteristic);
         if (taggedItem.isPresent()) {
             if (type.isInstance(taggedItem.get().getItem()))
-                return (T) getCharacteristic(characteristic).get().getItem();
+                return (T) taggedItem.get().getItem();
             else
                 logger.warn("Unsupported item type for characteristic {} at accessory {}. Expected {}, got {}",
                         characteristic, accessory.getItem().getLabel(), type, taggedItem.get().getItem().getClass());
@@ -160,15 +169,64 @@ abstract class AbstractHomekitAccessoryImpl implements HomekitAccessory {
         return null;
     }
 
-    protected <T> T getAccessoryConfiguration(String key, T defaultValue) {
-        final @Nullable Map<String, Object> configuration = accessory.getConfiguration();
-        if ((configuration != null) && (configuration.get(key) != null)) {
-            return (T) configuration.get(key);
+    @SuppressWarnings("unchecked")
+    private <T> T getItemConfiguration(@NonNull HomekitTaggedItem item, @NonNull String key, @NonNull T defaultValue) {
+        final @Nullable Map<String, Object> configuration = item.getConfiguration();
+        if (configuration != null) {
+            Object value = configuration.get(key);
+            if (value != null && value.getClass().equals(defaultValue.getClass())) {
+                return (T) value;
+            }
         }
         return defaultValue;
     }
 
+    /**
+     * return configuration attached to the root accessory, e.g. groupItem.
+     * Note: result will be casted to the type of the default value.
+     * The type for number is BigDecimal.
+     * 
+     * @param key configuration key
+     * @param defaultValue default value
+     * @param <T> expected type
+     * @return configuration value
+     */
+    protected <T> T getAccessoryConfiguration(@NonNull String key, @NonNull T defaultValue) {
+        return getItemConfiguration(accessory, key, defaultValue);
+    }
+
+    /**
+     * return configuration of the characteristic item, e.g. currentTemperature.
+     * Note: result will be casted to the type of the default value.
+     * The type for number is BigDecimal.
+     * 
+     * @param characteristicType characteristic type
+     * @param key configuration key
+     * @param defaultValue default value
+     * @param <T> expected type
+     * @return configuration value
+     */
+    protected <T> T getAccessoryConfiguration(@NonNull HomekitCharacteristicType characteristicType,
+            @NonNull String key, @NonNull T defaultValue) {
+        final Optional<HomekitTaggedItem> characteristic = getCharacteristic(characteristicType);
+        return characteristic.isPresent() ? getItemConfiguration(characteristic.get(), key, defaultValue)
+                : defaultValue;
+    }
+
     protected void addCharacteristic(HomekitTaggedItem characteristic) {
         characteristics.add(characteristic);
+    }
+
+    private <T extends Quantity<T>> double convertAndRound(double value, Unit<T> from, Unit<T> to) {
+      double rawValue = from == to ? value : from.getConverterTo(to).convert(value);
+      return new BigDecimal(rawValue).setScale(1, RoundingMode.HALF_UP).doubleValue();
+    }
+
+    protected double convertToCelsius(double degrees){
+      return convertAndRound(degrees, getSettings().useFahrenheitTemperature ? ImperialUnits.FAHRENHEIT : SIUnits.CELSIUS, SIUnits.CELSIUS);
+    }
+
+    protected double convertFromCelsius(double degrees){
+      return convertAndRound(degrees, getSettings().useFahrenheitTemperature ? SIUnits.CELSIUS : ImperialUnits.FAHRENHEIT, ImperialUnits.FAHRENHEIT);
     }
 }

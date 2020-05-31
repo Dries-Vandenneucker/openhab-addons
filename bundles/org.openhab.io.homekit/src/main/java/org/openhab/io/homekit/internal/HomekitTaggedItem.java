@@ -17,7 +17,6 @@ import static org.openhab.io.homekit.internal.HomekitAccessoryType.DUMMY;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.smarthome.core.items.GroupItem;
@@ -33,6 +32,11 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class HomekitTaggedItem {
     private final Logger logger = LoggerFactory.getLogger(HomekitTaggedItem.class);
+
+    /** configuration keywords at items level **/
+    public final static String MIN_VALUE = "minValue";
+    public final static String MAX_VALUE = "maxValue";
+    public final static String STEP = "step";
 
     private static final Map<Integer, String> CREATED_ACCESSORY_IDS = new ConcurrentHashMap<>();
     /**
@@ -138,7 +142,8 @@ public class HomekitTaggedItem {
     }
 
     private int calculateId(Item item) {
-        int id = new HashCodeBuilder().append(item.getName()).hashCode();
+        // magic number 629 is the legacy from apache HashCodeBuilder (17*37)
+        int id = 629 + item.getName().hashCode();
         if (id < 0) {
             id += Integer.MAX_VALUE;
         }
